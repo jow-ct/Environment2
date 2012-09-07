@@ -79,6 +79,7 @@ import android.util.Pair;
 
 public class Environment2  {
 	private static final String TAG = "Environment2";
+	private static final boolean DEBUG = true;
 
 	private static ArrayList<Device> mDeviceList = null;
 	private static boolean mExternalEmulated = false;
@@ -102,8 +103,10 @@ public class Environment2  {
 		public static Size getSpace(File f) {
 			if (f!=null) try {
 				if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD) {
+					// Gingerbread hat Größe/freier Platz im File
 					return new Size(f.getUsableSpace(), f.getTotalSpace());
 				} else {
+					// vor Gingerbread muss der StatFs-Krams ran; wichtig ist die long-Wandlung
 					StatFs fs = new StatFs(f.getAbsolutePath());
 					return new Size((long)fs.getAvailableBlocks()*fs.getBlockSize(), (long)fs.getBlockCount()*fs.getBlockSize());
 				}
@@ -191,7 +194,7 @@ public class Environment2  {
 
 
 	/**
-	 * leerer Constructor
+	 * Constructor
 	 */
 	public Environment2() {
 		rescanDevices();
@@ -207,7 +210,7 @@ public class Environment2  {
 		if (mDeviceList==null) rescanDevices();
 		IntentFilter filter = new IntentFilter();
 		filter.addAction(Intent.ACTION_MEDIA_BAD_REMOVAL); // rausgenommen
-		filter.addAction(Intent.ACTION_MEDIA_MOUNTED); // klappt wieder
+		filter.addAction(Intent.ACTION_MEDIA_MOUNTED); // wieder eingesetzt
 		filter.addAction(Intent.ACTION_MEDIA_REMOVED); // entnommen
 		filter.addAction(Intent.ACTION_MEDIA_SHARED); // per USB am PC
 		filter.addDataScheme("file"); // geht ohne das nicht, obwohl das in der Doku nicht so recht steht
@@ -237,7 +240,7 @@ public class Environment2  {
 		if (mDeviceList==null) rescanDevices();
 		BroadcastReceiver br = new BroadcastReceiver() {
 			@Override public void onReceive(Context context, Intent intent) {
-				Log.i(TAG, "Storage: "+intent.getAction()+"-"+intent.getData());
+				if (DEBUG) Log.i(TAG, "Storage: "+intent.getAction()+"-"+intent.getData());
 				rescanDevices();
 				if (r!=null) r.run();
 			}
@@ -486,7 +489,7 @@ public class Environment2  {
 	 */
 	private static File getSecondaryDirectoryLow(String s, boolean create) {
 		File f = new File(mSecondary.mMountPoint+"/"+s);
-		Log.v(TAG, "getLow "+f.getAbsolutePath()+" e:"+f.exists()+" d:"+f.isDirectory()+" w:"+f.canWrite() );
+		if (DEBUG) Log.v(TAG, "getLow "+f.getAbsolutePath()+" e:"+f.exists()+" d:"+f.isDirectory()+" w:"+f.canWrite() );
 		if (create && !f.isDirectory() && mSecondary.mWriteable) 
 			// erzeugen, falls es nicht existiert und Schreibzugriff auf die SD vorhanden
 			f.mkdirs(); 
