@@ -165,7 +165,7 @@ public class Environment2  {
 
 	/**
 	 * Fragt ab, ob die Zweit-SD vorhanden ist. Der genauere Status kann 
-	 * danach per {@link #getSecondaryExternalStorageState() abgefragt werden.
+	 * danach per {@link #getSecondaryExternalStorageState()} abgefragt werden.
 	 * @return true, wenn eine Zweit-SD vorhanden und eingelegt ist, 
 	 * 		false wenn nicht eingelegt oder kein Slot vorhanden
 	 */
