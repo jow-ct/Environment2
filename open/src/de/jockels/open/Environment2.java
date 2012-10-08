@@ -17,6 +17,7 @@ import android.text.TextUtils.SimpleStringSplitter;
 import android.util.Log;
 
 /**
+ * 
  * Hilfsklasse mit mehreren Funktionsblöcken, die auf die Problematik eingehen, 
  * dass viele moderne Android-Geräte technisch zwei SD-Karten haben: 
  * <ul>
