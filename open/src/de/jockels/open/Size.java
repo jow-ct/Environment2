@@ -5,6 +5,7 @@ import java.io.File;
 import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.StatFs;
+import android.util.Log;
 import android.util.Pair;
 
 /**
@@ -35,6 +36,7 @@ public class Size extends Pair<Long,Long> {
 	 * 		also bsp. 16 GB für 14 GB. Falls second 0 ist, kommt 1 zurück.
 	 */
 	public long guessSize() {
+		if (second==0) return 0;
 		long g;
 		if (second>1024*1024*1024) g = 1024*1024*1024;
 		else if (second>1024*1024) g = 1024*1024;

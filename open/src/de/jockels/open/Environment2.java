@@ -138,6 +138,7 @@ import android.util.Log;
  * <li>Motorola Razr			/mnt/sdcard-ext
  * <li>Motorola Xoom			/mnt/external1
  * <li>Samsung Note			/mnt/sdcard/external_sd (und Pocket und Mini 2)
+ * <li>Samsung Note II			/storage/extSdCard
  * <li>Samsung S3					/mnt/extSdCard
  *  <p>
  *  Einige Hersteller hängen die SD-Karte unter /mnt ein, andere in die 
@@ -146,7 +147,7 @@ import android.util.Log;
  *  wieder andere in ein anderes Root-Verzeichnis.
  *  
  *  @author Jörg Wirtgen (jow@ct.de)
- *  @version 1.0
+ *  @version 1.1
  */
 
 public class Environment2  {
@@ -603,7 +604,8 @@ public class Environment2  {
 	}
 	
 	
-	public static Device getSecondaryExternalStorage() {
+	public static Device getSecondaryExternalStorage() throws NoSecondaryStorageException {
+		if (mSecondary==null) throw new NoSecondaryStorageException();
 		return mSecondary;
 	}
 	

@@ -86,7 +86,7 @@ public class Device  {
 		mMountPoint = sp.next().trim();
 		File f = new File(mMountPoint);
 		mName = f.getName(); // letzter Teil des Pfads
-		if (mAvailable = f.isDirectory()) {
+		if (mAvailable = f.isDirectory() && f.canRead()) { // ohne canRead() klappts z.B. beim Note2 nicht
 			mSize = Size.getSpace(f); 
 			mWriteable = f.canWrite();
 			// Korrektur, falls in /mnt/sdcard gemountet (z.B. Samsung)
