@@ -5,7 +5,6 @@ import java.io.File;
 import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.StatFs;
-import android.util.Log;
 import android.util.Pair;
 
 /**
