@@ -6,7 +6,6 @@
     <uses-sdk android:minSdkVersion="8" android:targetSdkVersion="15" />
 
     <application android:label="open">
-
     </application>
 
 </manifest>

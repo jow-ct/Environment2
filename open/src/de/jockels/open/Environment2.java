@@ -483,13 +483,14 @@ public class Environment2  {
 			mSecondary = null;
 		} else {
 			mSecondary = mDeviceList.get(0);
+			mSecondary.setName("SD-Card");
 			// Hack
 			if (mPrimary.isRemovable()) Log.w(TAG, "isExternStorageRemovable overwrite (secondary sd found) auf false");
 			mPrimary.setRemovable(false);
 		}
 
 		// jetzt noch Name setzen TODO in strings.xml
-		mPrimary.setName( mPrimary.isRemovable() ? "SD-Card" : "intern" );
+		mPrimary.setName( mPrimary.isRemovable() ? "SD-Card" : "intern 2" );
 	}
 	
 
@@ -582,15 +583,20 @@ public class Environment2  {
 	 * @param key ein String zum Einschränken der Liste. Findet nur die Devices 
 	 * 		mit dem String in getName() oder alle, falls null.
 	 * @param available ein Boolean zum Beschränken der Liste auf vorhandene
-	 * 		(eingesteckte) Geräte. false findet alle, true nur diejenigen, die eingesteckt sind
+	 * 		(eingesteckte) Geräte. false findet alle, true nur diejenigen, die eingesteckt sind.
+	 * 		Wenn false, können Device-Einträge zurückgegeben werden, deren
+	 * 		getSize()-Objekt null ist.
 	 * @param intern ein Boolean, der bestimmt, ob der interne Speicher (/mnt/sdcard)
 	 * 		mit in die Liste übernommen wird (unter Berücksichtigung von available,
 	 * 		aber nicht key).
+	 * @param data ein Boolean, der bestimmt, ob der data-Speicher (/data) mit
+	 * 		in die Liste übernommen wird
 	 * @return ein Array mit allen {@link Device}, die den Suchkriterien entsprechen
 	 */
-	public static Device[] getDevices(String key, boolean available, boolean intern) {
+	public static Device[] getDevices(String key, boolean available, boolean intern, boolean data) {
 		if (key!=null) key = key.toLowerCase();
-		ArrayList<Device> temp = new ArrayList<Device>(mDeviceList.size());
+		ArrayList<Device> temp = new ArrayList<Device>(mDeviceList.size()+2);
+		if (data) temp.add(getInternalStorage());
 		if (intern && ( !available || mPrimary.isAvailable())) temp.add(mPrimary);
 		for (Device d : mDeviceList) {
 			if ( ((key==null) || d.getName().toLowerCase().contains(key)) && (!available || d.isAvailable()) ) temp.add(d);

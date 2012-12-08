@@ -34,7 +34,8 @@ public class Device  {
 	 */
 	protected Device initFromDataDirectory() {
 		File f = Environment.getDataDirectory();
-		mLabel = mMountPoint = mName = f.getAbsolutePath();
+		mLabel = mMountPoint = f.getAbsolutePath();
+		mName = "intern";
 		mRemovable = false;
 		if (mAvailable = f.isDirectory()) {
 			mWriteable = f.canWrite();
