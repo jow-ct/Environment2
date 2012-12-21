@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 
+import de.jockels.open.pref.DevicesListPreference;
+
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -43,6 +45,17 @@ import android.util.Log;
  * 
  * <h2>Die Funktionsblöcke</h2>
  * <ol>
+ * <li>In Version 1.2 der Library ist eine neue Zugriffsmethode eingebaut, die
+ * das Einstellen des Speicherorts per PreferenceScreen erleichtert. Dazu bindet
+ * man ein {@link DevicesListPreference} in seine XML-Datei ein, definiert
+ * dort über ein paar Parameter, welche Devices angezeigt werden sollen und
+ * bekommt dann per statischer Methode 
+ * {@link DevicesListPreference#getDevice(Context, android.content.SharedPreferences, String)}
+ * das gespeicherte Device mitgeteilt. Im erweiterten {@link Device} gibt
+ * es nun Methoden, die analog zu den Environment- oder Context-Methoden
+ * Unterverzeichnisse erzeugen. Von den hier aufgeführten Methoden benötigt
+ * man dann nur die für den BroadcastReceiver.
+ * 
  * <li>Ob die bei vielen modernen Geräten (v.a. Tablets) vorhandene externe 
  * SD-Karte existiert, liefert {@link #isSecondaryExternalStorageAvailable()},
  * ob sie entfernbar ist, {@link #isSecondaryExternalStorageRemovable()}. 
@@ -147,18 +160,20 @@ import android.util.Log;
  *  wieder andere in ein anderes Root-Verzeichnis.
  *  
  *  @author Jörg Wirtgen (jow@ct.de)
- *  @version 1.1
+ *  @version 1.2
  */
 
 public class Environment2  {
 	private static final String TAG = "Environment2";
 	private static final boolean DEBUG = true;
 	
-	private static ArrayList<Device> mDeviceList = null;
+	private static ArrayList<DeviceDiv> mDeviceList = null;
 	private static boolean mExternalEmulated = false;
-	protected static Device mPrimary = null;
-	private static Device mSecondary = null;
+	private static Device mInternal = null;
+	protected static DeviceExternal mPrimary = null;
+	private static DeviceDiv mSecondary = null;
 
+	public final static String PATH_PREFIX = "/Android/data/";
 	static {
 		rescanDevices();
 	}
@@ -215,10 +230,7 @@ public class Environment2  {
 	 */
 	public static String getSecondaryExternalStorageState() throws NoSecondaryStorageException {
 		if (mSecondary==null) throw new NoSecondaryStorageException();
-		if (mSecondary.isAvailable())
-			return mSecondary.isWriteable() ? Environment.MEDIA_MOUNTED : Environment.MEDIA_MOUNTED_READ_ONLY;
-		else 
-			return Environment.MEDIA_REMOVED;
+		return mSecondary.getState();
 	}
 
 	
@@ -235,7 +247,7 @@ public class Environment2  {
 	public static File getSecondaryExternalStoragePublicDirectory(String s) throws NoSecondaryStorageException {
 		if (mSecondary==null) throw new NoSecondaryStorageException();
 		if (s==null) throw new IllegalArgumentException("s darf nicht null sein");
-		return getSecondaryDirectoryLow(s, false);
+		return mSecondary.getPublicDirectory(s);
 	}
 	
 	
@@ -254,34 +266,16 @@ public class Environment2  {
 	public static File getSecondaryExternalFilesDir(Context context, String s) throws NoSecondaryStorageException {
 		if (mSecondary==null) throw new NoSecondaryStorageException();
 		if (context==null) throw new IllegalArgumentException("context darf nicht null sein");
-		String name = "/Android/data/" + context.getPackageName() + "/files";
-		if (s!=null) name += "/" + s;
-		return getSecondaryDirectoryLow(name, true);
+		return mSecondary.getFilesDir(context, s);
 	}
 	
 	
 	public static File getSecondaryExternalCacheDir(Context context) throws NoSecondaryStorageException {
 		if (mSecondary==null) throw new NoSecondaryStorageException();
 		if (context==null) throw new IllegalArgumentException("context darf nicht null sein");
-		String name = "/Android/data/" + context.getPackageName() + "/cache";
-		return getSecondaryDirectoryLow(name, true);
+		return mSecondary.getCacheDir(context);
 	}
 	
-
-	/**
-	 * interne Routine ohne Fehlerüberprüfung und mit Möglichkeit, den Pfad zu erstellen -- oder auch nicht
-	 * @param s der Pfad, der an External angehängt wird, darf nicht null sein
-	 * @param create Verzeichnis erzeugen oder nicht
-	 * @return das angeforderte Verzeichnis
-	 */
-	private static File getSecondaryDirectoryLow(String s, boolean create) {
-		File f = new File(mSecondary.getMountPoint()+"/"+s);
-		if (DEBUG) Log.v(TAG, "getLow "+f.getAbsolutePath()+" e:"+f.exists()+" d:"+f.isDirectory()+" w:"+f.canWrite() );
-		if (create && !f.isDirectory() && mSecondary.isWriteable()) 
-			// erzeugen, falls es nicht existiert und Schreibzugriff auf die SD vorhanden
-			f.mkdirs(); 
-		return f;
-	}
 
 /*	
 	 * Implementiert sind: {@link #getCardDirectory()}, 
@@ -326,11 +320,9 @@ public class Environment2  {
 			catch (NoSecondaryStorageException e) {throw new RuntimeException("NoSecondaryException trotz Available"); }
 		else
 			return ctx.getExternalFilesDir(dir);
-		
 	}
 
 
-	
 	/**
 	 * Alternative zu {@code Environment#isExternalStorageEmulated() }, 
 	 * die ab API8 funktioniert. Wenn true geliefert wird, handelt es sich
@@ -413,9 +405,8 @@ public class Environment2  {
 	 * werden; dafür ist der Aufrufer verantwortlich. Das Registrieren des
 	 * Receivers wird hier schon durchgeführt (mit getRescanIntentFilter)
 	 * <p>
-	 * Das geht dann (z.B. in onCreate() ) so: <pre>
-		BroadcastReceiver mRescanReceiver 
-		= Environment2.registerRescanBroadcastReceiver(this, new Runnable() {
+	 * Das geht dann (z.B. in onCreate() ) so (mit {@code BroadcastReceiver mRescanReceiver;}) : <pre>
+		mRescanReceiver = Environment2.registerRescanBroadcastReceiver(this, new Runnable() {
 	 		public void run() {
 	 			auszuführende Befehle
 	 		}
@@ -461,8 +452,8 @@ public class Environment2  {
 	 */
 	@SuppressLint("NewApi")
 	public static void rescanDevices() {
-		mDeviceList = new ArrayList<Device>(10);
-		mPrimary = new Device().initFromExternalStorageDirectory();
+		mDeviceList = new ArrayList<DeviceDiv>(10);
+		mPrimary = new DeviceExternal();
 
 		// vold.fstab lesen; TODO bei Misserfolg eine andere Methode
 		if (!scanVold("vold.fstab")) scanVold("vold.conf");
@@ -489,8 +480,6 @@ public class Environment2  {
 			mPrimary.setRemovable(false);
 		}
 
-		// jetzt noch Name setzen TODO in strings.xml
-		mPrimary.setName( mPrimary.isRemovable() ? "SD-Card" : "intern 2" );
 	}
 	
 
@@ -515,8 +504,7 @@ public class Environment2  {
     			sp.setString(s.trim());
     			f = sp.next(); // dev_mount oder anderes
         		if ("dev_mount".equals(f)) {
-        			Device d = new Device();
-        			d.initFromStringSplitter(sp);
+        			DeviceDiv d = new DeviceDiv(sp);
         			
         			if (TextUtils.equals(mPrimary.getMountPoint(), d.getMountPoint())) {
         				// ein wenig Spezialkrams über /mnt/sdcard herausfinden
@@ -617,7 +605,8 @@ public class Environment2  {
 	
 	
 	public static Device getInternalStorage() {
-		return new Device().initFromDataDirectory();
+		if (mInternal==null) mInternal = new DeviceIntern();
+		return mInternal;
 	}
 	
 	

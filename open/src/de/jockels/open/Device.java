@@ -2,10 +2,8 @@ package de.jockels.open;
 
 import java.io.File;
 
-import android.annotation.SuppressLint;
-import android.os.Build;
+import android.content.Context;
 import android.os.Environment;
-import android.text.TextUtils.SimpleStringSplitter;
 
 /**
  * Hilfsklasse zur Beschreibung eines Devices, womit MountPoints gemeint sind, also
@@ -14,99 +12,72 @@ import android.text.TextUtils.SimpleStringSplitter;
  * daher keine public constructors. Kann aber für manche Zwecke genutzt werden,
  * daher einige public methods.
  * 
+ * Die konkrete Implementierung findet seit Version 1.2 in den Klassen 
+ * {@link DeviceIntern} (/data), {@link DeviceExternal} (/mnt/sdcard) und
+ * {@link DeviceDiv} (weitere SD-Karten, USB-Geräte) statt.
+ * 
  * @see Environment2
  * @see Size
  * @author Jörg Wirtgen (jow@ct.de)
+ * @version 1.2
  * 
  */
-public class Device  {
-	private Size mSize;
-	private String mLabel, mMountPoint, mName;
-	private boolean mRemovable, mAvailable, mWriteable;
-
-	protected Device() {}
+public abstract class Device  {
+	protected Size mSize;
+	protected String mMountPoint;
 	
-	
-	/**
-	 * liest Parameter aus {@link Environment#getDataDirectory() }, also
-	 * i.Allg. /data
-	 * @return this für Verkettungen wie {@code return new Device().initFromDataDirectory() } 
-	 */
-	protected Device initFromDataDirectory() {
-		File f = Environment.getDataDirectory();
-		mLabel = mMountPoint = f.getAbsolutePath();
-		mName = "intern";
-		mRemovable = false;
-		if (mAvailable = f.isDirectory()) {
-			mWriteable = f.canWrite();
-			mSize = Size.getSpace(f);
-		}
-		return this;
-	}
-	
-	
-	/**
-	 * liest Parameter aus {@link Environment#getExternalStorageDirectory()},
-	 * also i.Allg. /mnt/data
-	 * @return this für Verkettungen wie {@code return new Device().initFromExternalStorageDirectory() } 
-	 */
-	@SuppressLint("NewApi") 
-	protected Device initFromExternalStorageDirectory() {
-		File f = Environment.getExternalStorageDirectory();
-		mLabel = mMountPoint = f.getAbsolutePath();
-
-		String state = Environment.getExternalStorageState();
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD) 
-    		mRemovable = Environment.isExternalStorageRemovable(); // Gingerbread weiß es genau
-		else
-			mRemovable = false; // guess, wird ggf. später korrigiert
-		
-		if (Environment.MEDIA_MOUNTED.equals(state)) {
-			mAvailable = mWriteable = true;
-		} else if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(state)) {
-			mAvailable = true;
-			mWriteable = false;
-		} else {
-			mAvailable = mWriteable = false;
-			// nicht mRemovable=true! Unmounted kann auch heißen, dass sie per USB am PC hängt
-		}
-		if (mAvailable) mSize = Size.getSpace(f);
-		return this;
-	}
-
-	
-	/**
-	 * Constructor, der eine Zeile aus vold.fstab bekommt (dev_mount schon weggelesen)
-	 * @param sp der StringSplitter, aus dem die Zeile gelesen wird, wobei
-	 * 		"dev_mount" schon weggelesen sein muss.
-	 * @return this für Verkettungen wie {@code return new Device().initFrom...() } 
-	 */
-	protected Device initFromStringSplitter(SimpleStringSplitter sp) {
-		mRemovable = true;
-		mLabel = sp.next().trim();
-		mMountPoint = sp.next().trim();
-		File f = new File(mMountPoint);
-		mName = f.getName(); // letzter Teil des Pfads
-		if (mAvailable = f.isDirectory() && f.canRead()) { // ohne canRead() klappts z.B. beim Note2 nicht
-			mSize = Size.getSpace(f); 
-			mWriteable = f.canWrite();
-			// Korrektur, falls in /mnt/sdcard gemountet (z.B. Samsung)
-			if (mMountPoint.startsWith(Environment2.mPrimary.mMountPoint) && mSize.equals(Environment2.mPrimary.mSize)) 
-				mAvailable = mWriteable = false;
-		} else 
-			mWriteable = false;
-		return this;
-	}
-	
+	// Zugriff auf interne Felder -------------------------------------------------------------------
 	public final File getFile() { return new File(mMountPoint); }
 	public final Size getSize() { return mSize; }
-	public final String getLabel() { return mLabel; }
 	public final String getMountPoint() { return mMountPoint; }
-	public final String getName() { return mName; }
-	public final boolean isRemovable() { return mRemovable; }
-	public final boolean isAvailable() { return mAvailable; }
-	public final boolean isWriteable() { return mWriteable; }
+	public abstract String getName();
+	public abstract boolean isRemovable();
+	public abstract boolean isAvailable();
+	public abstract boolean isWriteable();
+
 	
-	protected final void setName(String name) { mName = name; }
-	protected final void setRemovable(boolean remove) { mRemovable = remove; }
+	/**
+	 * Liefert analog zu Context.getXXXFilesDir ein Datenverzeichnis auf
+	 * diesem Gerät zurück und erzeugt das Verzeichnis bei Bedarf.. 
+	 * @param ctx der Context der App
+	 * @return ein File, das auf einen für App-Daten nutzbaren Pfad auf dem
+	 * 	Device zeigt. Wenn es sich um den internen oder primären Speicher
+	 * 	handelt, kommen die Methoden von {@link Context} zum Einsatz, beim
+	 * 	sekundären Speicher und sonstigen Devices (USB) ein dem 
+	 * 	nachempfundener Pfad. Falls null kommt, könnte die Permission
+	 * 	android.permission.WRITE_EXTERNAL_STORAGE fehlen.
+	 * @since 1.2
+	 */
+	public abstract File getFilesDir(Context ctx);
+	public abstract File getFilesDir(Context ctx, String s);
+	public abstract File getCacheDir(Context ctx);
+	
+	/**
+	 * Liefert analog zu {@link Environment#getExternalStoragePublicDirectory(String)}
+	 * ein Datenverzeichnis auf diesem Gerät zurück
+	 * @param s der Name des Unterverzeichnis als String, wobei die 
+	 * Environment-Konstanten wie {@link Environment#DIRECTORY_DOWNLOADS}
+	 * auch funktionieren. Kann null sein, entspricht dann getMountPoint()
+	 * @return ein File, das auf das angeforderte Verzeichnis zeigt. Es wird wie die 
+	 * 	Environment-Methode nicht erzeugt. null, falls Device auf den internen
+	 * 	Speicher (/data) zeigt.
+	 * @since 1.2
+	 */
+	public abstract File getPublicDirectory(String s);
+	
+	/**
+	 * Liefert analog zu {@link Environment#getExternalStorageState()} zurück,
+	 * ob das Device gemountet (lesbar) und beschreibbar ist. Alternativ kann man
+	 * isWriteable() und isAvailable() nutzen.
+	 * 
+	 * @return einen String mit Konstanten Environment.MEDIA_xxx, wobei
+	 * 	der interne Speicher immer {@link Environment#MEDIA_MOUNTED} und
+	 * 	die Zusatzspeicher immer das, {@link Environment#MEDIA_MOUNTED_READ_ONLY}
+	 * 	oder {@link Environment#MEDIA_UNMOUNTED} liefern, keine
+	 * 	detaillierteren Informationen.
+	 * @since 1.2
+	 */
+	public abstract String getState(); 
+
 }
+
