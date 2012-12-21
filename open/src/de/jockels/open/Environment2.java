@@ -160,7 +160,7 @@ import android.util.Log;
  *  wieder andere in ein anderes Root-Verzeichnis.
  *  
  *  @author Jörg Wirtgen (jow@ct.de)
- *  @version 1.2
+ *  @version 1.3
  */
 
 public class Environment2  {
@@ -437,18 +437,28 @@ public class Environment2  {
 		context.registerReceiver(br, getRescanIntentFilter());
 		return br;
 	}
+
 	
+	/**
+	 * Scannt die Verfügbarkeit aller Geräte neu, ohne {@link #rescanDevices()} aufzurufen.
+	 * 
+	 * <p>Wird vom BroadcastReceiver aufgerufen. Falls die App einen eigenen
+	 * BroadcastReceiver zum Erkennen von Wechseln bei Devices schreibt, 
+	 * sollte in dessen onReceive() diese Methode aufgerufen werden.
+	 * 
+	 * @see Environment2#registerRescanBroadcastReceiver(Context, Runnable)
+	 * @since 1.3
+	 */
+	public void updateDevices() {
+		for (Device i : mDeviceList) {i.updateState();}
+		mPrimary.updateState();
+	}
+
 	
 	/**
 	 * Sucht das Gerät nach internen und externen Speicherkarten und USB-Geräten
-	 * ab. Wird automatisch beim App-Start aufgerufen (in einem static-initializer)
-	 * und kann sich per BroadcastReceiver selbst aktualisieren. Muss also 
-	 * eigentlich nie von der App aufgerufen werden, außer in einem Fall: 
-	 * Wenn man selbst einen BroadcastReceiver zum Erkennen von Wechseln
-	 * bei Devices schreibt, sollte in dessen onReceive() diese Methode 
-	 * aufgerufen werden.
-	 * 
-	 * @see Environment2#registerRescanBroadcastReceiver(Context, Runnable)
+	 * ab. Wird automatisch beim App-Start aufgerufen (in einem static-initializer) und
+	 * muss nach bisherigen Erkenntnissen nie von der App aufgerufen werden.
 	 */
 	@SuppressLint("NewApi")
 	public static void rescanDevices() {
@@ -479,10 +489,9 @@ public class Environment2  {
 			if (mPrimary.isRemovable()) Log.w(TAG, "isExternStorageRemovable overwrite (secondary sd found) auf false");
 			mPrimary.setRemovable(false);
 		}
-
 	}
 	
-
+	
 	/**
 	 * Die vold-Konfigurationsdatei auswerten, die üblicherweise 
 	 * in /system/etc/ liegt. 

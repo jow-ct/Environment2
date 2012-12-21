@@ -19,7 +19,7 @@ import android.os.Environment;
  * @see Environment2
  * @see Size
  * @author Jörg Wirtgen (jow@ct.de)
- * @version 1.2
+ * @version 1.3
  * 
  */
 public abstract class Device  {
@@ -35,6 +35,13 @@ public abstract class Device  {
 	public abstract boolean isAvailable();
 	public abstract boolean isWriteable();
 
+	/**
+	 * sollte die Verfügbarkeit des Devices erneuern; wird vom BroadcastReceiver
+	 * von Environment2 aufgerufen.
+	 * @since 1.3
+	 */
+	protected void updateState() {}
+	
 	
 	/**
 	 * Liefert analog zu Context.getXXXFilesDir ein Datenverzeichnis auf

@@ -24,19 +24,13 @@ class DeviceDiv extends Device {
 	}
 	
 	@Override
-	public boolean isAvailable() {
-		updateState();
-		return mAvailable;
-	}
+	public boolean isAvailable() { return mAvailable; }
 
 	@Override
-	public boolean isWriteable() {
-		updateState();
-		return mWriteable;
-	}
+	public boolean isWriteable() { return mWriteable; }
 
-	
-	private final void updateState() {
+	@Override
+	protected void updateState() {
 		File f = new File(mMountPoint);
 		setName(f.getName()); // letzter Teil des Pfads
 		if (mAvailable = f.isDirectory() && f.canRead()) { // ohne canRead() klappts z.B. beim Note2 nicht
@@ -83,12 +77,10 @@ class DeviceDiv extends Device {
 
 	@Override
 	public String getState() {
-		updateState();
 		if (mAvailable)
 			return mWriteable ? Environment.MEDIA_MOUNTED : Environment.MEDIA_MOUNTED_READ_ONLY;
 		else 
 			return Environment.MEDIA_REMOVED;
 	}
-
 
 }

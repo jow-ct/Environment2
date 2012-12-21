@@ -9,6 +9,8 @@ import android.os.Environment;
 
 class DeviceExternal extends Device {
 	private boolean mRemovable; 
+	private String mState;
+	
 	/**
 	 * liest Parameter aus {@link Environment#getExternalStorageDirectory()},
 	 * also i.Allg. /mnt/data
@@ -24,9 +26,20 @@ class DeviceExternal extends Device {
 		else
 			mRemovable = false; // guess, wird ggf. später korrigiert
 
-		if (isAvailable()) mSize = Size.getSpace(f);
+		updateState();
 	}
 
+	
+	@Override
+	protected void updateState() {
+		mState = Environment.getExternalStorageState();
+		if (isAvailable()) {
+			File f = new File(mMountPoint);
+			mSize = Size.getSpace(f);
+		}
+	}
+	
+	
 	@Override
 	public String getName() { return mRemovable ? "SD-Card" : "intern 2"; }
 
@@ -35,13 +48,12 @@ class DeviceExternal extends Device {
 
 	@Override
 	public boolean isAvailable() {
-		String state = Environment.getExternalStorageState();
-		return (Environment.MEDIA_MOUNTED.equals(state) || Environment.MEDIA_MOUNTED_READ_ONLY.equals(state));
+		return (Environment.MEDIA_MOUNTED.equals(mState) || Environment.MEDIA_MOUNTED_READ_ONLY.equals(mState));
 	}
 
 	@Override
 	public boolean isWriteable() {
-		return Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState());
+		return Environment.MEDIA_MOUNTED.equals(mState);
 	}
 
 	protected final void setRemovable(boolean remove) { mRemovable = remove; }
@@ -59,6 +71,6 @@ class DeviceExternal extends Device {
 	public File getPublicDirectory(String s) { return Environment.getExternalStoragePublicDirectory(s); }
 
 	@Override
-	public String getState() { return Environment.getExternalStorageState(); }
+	public String getState() { return mState; }
 
 }

@@ -1,9 +1,8 @@
 package de.jockels.open.pref;
 
-import java.io.File;
-
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.TypedArray;
 import android.preference.ListPreference;
 import android.text.format.Formatter;
 import android.util.AttributeSet;
@@ -14,16 +13,30 @@ import de.jockels.open.Environment2;
 /**
  * PreferenceScreen-Element, das die Auswahl der verfügbaren Speicherorte erlaubt. 
  * Es benutzt dazu die von {@link Environment2#getDevices(String, boolean, boolean, boolean)}
- * gelieferte Liste. Die Parameter kann man über die XML-Datei steuern, und zwar mit den
- * Variablen devices_key, _available, _intern und _data. Und devices_apppath
+ * gelieferte Liste. Die Parameter kann man über die XML-Datei steuern, und zwar mit folgenden
+ * Variablen:
+ * <ul>
+ * <li>devices_key: ein String als Filter für die Liste ("USB")
+ * <li>devices_available: bei 1 werden nur verfügbare Devies gelistet, bei 0 auch z.B. leere
+ * 	SD-Schächte und nicht angebundene USB-Geräte
+ * <li>devices_intern: bei 1 wird die primäre SD-Karte mit angeboten, bei 0 nur weitere 
+ * 	Geräte. 0 macht nur Sinn, wenn man USB-Geräte zur Auswahl bereitstellen möchte.
+ * <li>devices_data: bei 1 wird der interne Speicher (/data) mit angeboten. Vorsicht, dann klappt
+ * 	{@link Device#getPublicDirectory(String)} nicht.
+ * </ul>
+ * Als Default-Wert für android:defaultValue sind gültig: 0=interner Speicher (/data), 1=primäre
+ * SD (meist /mnt/sdcard), 2=sekundäre SD-Karte falls vorhanden, sonst primäre
  * 
  * Wie die Liste der Geräte dann optisch dargestellt wird, kann in einem Erben
  * geändert werden, und zwar durch Überladen von createEntry.
  * 
- * Gespeichert wird ein String, der {@link Device#getMountPoint()}. Dieser Pfad
- * ist nicht unbedingt direkt verwertbar: Beim internen Speicher zeigt er auf /data,
- * worauf man keine Schreibrechte besitzt. Abhilfe ist, im XML devices_apppath zu
- * setzen, dann wird ein Pfad nach anderem Muster erzeugt.
+ * Gespeichert wird ein String, der {@link Device#getMountPoint()}. Das kann in
+ * einem Erben per Überladen von createEntryValue geändert werden.
+ * 
+ * Den Pfad kann man über die normale {@link SharedPreferences#getString(String, String)}
+ * auslesen, doch das liefert nur einen String. Besser geht es über die statische Methode
+ * {@link #getDevice(Context, SharedPreferences, String)}, die direkt ein {@link Device}
+ * liefert, dessen Methoden wie {@link Device#getFilesDir(Context)} man benutzen kann.
  * 
  * Einbinden dann etwa so: <pre>
        &lt;PreferenceCategory android:title="@string/cfg_files"&gt;
@@ -43,8 +56,6 @@ import de.jockels.open.Environment2;
 public class DevicesListPreference extends ListPreference {
 	private static final String TAG = "Device";
 	
-	boolean useAppPath; // MountPoint oder + /data...name... abspeichern
-	
 	public DevicesListPreference(Context ctx, AttributeSet attrs) {
 		super(ctx, attrs);
 		
@@ -52,7 +63,6 @@ public class DevicesListPreference extends ListPreference {
 		boolean available = attrs.getAttributeBooleanValue(null, "devices_available", true);
 		boolean intern = attrs.getAttributeBooleanValue(null, "devices_intern", true);
 		boolean data = attrs.getAttributeBooleanValue(null, "devices_data", false);
-		useAppPath = attrs.getAttributeBooleanValue(null, "devices_apppath", false);
 		
 		Device[] devices = Environment2.getDevices(key, available, intern, data);
 		CharSequence[] entries = new CharSequence[devices.length];
@@ -68,17 +78,36 @@ public class DevicesListPreference extends ListPreference {
 	
 	public static Device getDevice(Context ctx, SharedPreferences cfg, String key) {
 		String n = cfg.getString(key, null);
-		Device[] d = Environment2.getDevices(null, false, true, true);
-		Log.v(TAG, "gesucht: "+n);
-		for (Device i : d) {
-			Log.v(TAG, "- vielleicht "+i.getMountPoint()+": "+n.startsWith(i.getMountPoint()));
-			if (n.startsWith(i.getMountPoint())) return i;
+		if (n==null) {
+			// Wert in Konfigurationsdatei nicht gefunden und kein Default-Wert
+			if (Environment2.getPrimaryExternalStorage().isAvailable())
+				return Environment2.getPrimaryExternalStorage();
+			else
+				return Environment2.getInternalStorage();
+		} else {
+			// Wert in Devices-Tabelle suchen
+			Device[] d = Environment2.getDevices(null, false, true, true);
+			for (Device i : d) { if (n.startsWith(i.getMountPoint())) return i; }
+			Log.i(TAG, "didn't find mount point "+n);
+			return null;
 		}
-		Log.v(TAG, "huch, nix gefunden...");
-		return null;
 	}
 	
+
+	@Override
+	protected Object onGetDefaultValue(TypedArray a, int index) {
+		String s = a.getString(index);
+		if ("1".equals(s)) // primäre/interne SD
+			return Environment2.getPrimaryExternalStorage().getMountPoint();
+		else if ("2".equals(s)) // sekundäre SD falls vorhanden
+			return Environment2.getCardDirectory().getAbsolutePath(); 
+		else // "0" oder anderer Wert oder existiert nicht
+			return Environment2.getInternalStorage().getMountPoint();
+	}
+
+
 	protected String f(long l) {return Formatter.formatShortFileSize(getContext(), l);}
+	
 	
 	protected String createEntry(Device d) {
 		return d.getName() + (d.isAvailable() ? 
@@ -86,11 +115,8 @@ public class DevicesListPreference extends ListPreference {
 					:	" (fehlt)");
 	}
 	
+	
 	protected String createEntryValue(Device d) {
-		if (useAppPath) {
-			File f = d.getFilesDir(getContext());
-			if (f!=null) return f.getAbsolutePath();
-		} 
 		return d.getMountPoint();
 	}
 }
