@@ -5,8 +5,6 @@ import java.io.File;
 import java.io.FileReader;
 import java.util.ArrayList;
 
-import de.jockels.open.pref.DevicesListPreference;
-
 import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -17,6 +15,7 @@ import android.os.Environment;
 import android.text.TextUtils;
 import android.text.TextUtils.SimpleStringSplitter;
 import android.util.Log;
+import de.jockels.open.pref.DevicesListPreference;
 
 /**
  * 
@@ -115,7 +114,8 @@ import android.util.Log;
  * Falls eine App mitbekommen will, wenn Geräte oder die SD-Karte
  * eingesteckt und entfernt werden, erstellt sie entweder einen eigenen
  * BroadcastReceiver oder (einfacher) übergibt {@link #registerRescanBroadcastReceiver()}
- * ein Runnable. 
+ * ein Runnable oder, falls man Zugriff auf den Intent haben möchte, einen 
+ * BroadcastReceiver.. 
  * <ul>
  * <li>Der eigene Receiver sollte in onReceive()  {@link #rescanDevices()} aufrufen. 
  * Die Methode {@link #getRescanIntentFilter()} erzeugt den richtigen
@@ -149,6 +149,7 @@ import android.util.Log;
  * <li>Intel Orange					/mnt/sdcard2
  * <li>LG Prada						/mnt/sdcard/_ExternalSD
  * <li>Motorola Razr			/mnt/sdcard-ext
+ * <li>Motorola Razr i		/mnt/external1 (zeigt es sogar korrekt an!)
  * <li>Motorola Xoom			/mnt/external1
  * <li>Samsung Note			/mnt/sdcard/external_sd (und Pocket und Mini 2)
  * <li>Samsung Note II			/storage/extSdCard
@@ -160,7 +161,7 @@ import android.util.Log;
  *  wieder andere in ein anderes Root-Verzeichnis.
  *  
  *  @author Jörg Wirtgen (jow@ct.de)
- *  @version 1.3
+ *  @version 1.4
  */
 
 public class Environment2  {
@@ -416,6 +417,10 @@ public class Environment2  {
 	 * <p>
 	 * Der hier implementierte Receiver macht nichts anderes als {@link #rescanDevices() }
 	 * und dann den Runnable aufzurufen.
+	 * <p>
+	 * TODO Problematisch ist, dass bei MEDIA_BAD_REMOVAL die Daten des fälschlich
+	 * 	entnommenen Sticks noch vorhanden sind.
+	 * 
 	 * @param context der Context, in dem registerReceiver aufgerufen wird
 	 * @param r der Runnable, der bei jedem An- und Abmelden von Devices 
 	 * 		ausgeführt wird; kann auch null sein
@@ -430,7 +435,7 @@ public class Environment2  {
 		BroadcastReceiver br = new BroadcastReceiver() {
 			@Override public void onReceive(Context context, Intent intent) {
 				if (DEBUG) Log.i(TAG, "Storage: "+intent.getAction()+"-"+intent.getData());
-				rescanDevices();
+				updateDevices();
 				if (r!=null) r.run();
 			}
 		};
@@ -439,6 +444,31 @@ public class Environment2  {
 	}
 
 	
+	/**
+	 * Wie {@link #registerRescanBroadcastReceiver(Context, Runnable)}, nur dass ein BroadcastReceiver
+	 * übergeben werden muss, deren onReceive dann aufgerufen wird. Der Unterschied: Hier bekommt
+	 * der Aufrufer den Intent mitgeteilt, beim anderen Aufruf nicht.
+	 * 
+	 * @param context der Context der App
+	 * @param r der BroadcastReceiver, dessen onReceive() aufgerufen werden soll
+	 * @return ein BroadcastReceiver (nicht der übergebene), der später dann unregisterReceiver
+	 * 	übergeben werden muss. Registriert werden muss er nicht, das führt die Methode durch.
+	 * @since 1.4
+	 */
+	public static BroadcastReceiver registerRescanBroadcastReceiver(Context context, final BroadcastReceiver r) {
+		if (mDeviceList==null) rescanDevices();
+		BroadcastReceiver br = new BroadcastReceiver() {
+			@Override public void onReceive(Context context, Intent intent) {
+				if (DEBUG) Log.i(TAG, "Storage: "+intent.getAction()+"-"+intent.getData());
+				updateDevices();
+				if (r!=null) r.onReceive(context, intent);
+			}
+		};
+		context.registerReceiver(br, getRescanIntentFilter());
+		return br;
+	}
+
+
 	/**
 	 * Scannt die Verfügbarkeit aller Geräte neu, ohne {@link #rescanDevices()} aufzurufen.
 	 * 
@@ -449,7 +479,7 @@ public class Environment2  {
 	 * @see Environment2#registerRescanBroadcastReceiver(Context, Runnable)
 	 * @since 1.3
 	 */
-	public void updateDevices() {
+	public static void updateDevices() {
 		for (Device i : mDeviceList) {i.updateState();}
 		mPrimary.updateState();
 	}
