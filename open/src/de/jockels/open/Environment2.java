@@ -161,7 +161,13 @@ import de.jockels.open.pref.DevicesListPreference;
  *  wieder andere in ein anderes Root-Verzeichnis.
  *  
  *  @author Jörg Wirtgen (jow@ct.de)
+
  *  @version 1.4
+ *  
+ *  @version 1.5 - auch für API7; die Zugriffe hier auf {@link Context}.getXXXDir
+ *  	finden nun über die Methoden von mPrimary statt, was ein {@link DeviceExternal}
+ *  	ist und bei Versionen vor API8 eine Emulation fährt ähnlich der in 
+ *  	{@link DeviceDiv} sowieso vorhandenen.
  */
 
 public class Environment2  {
@@ -296,7 +302,7 @@ public class Environment2  {
 			try {return getSecondaryExternalStoragePublicDirectory(dir);} 
 			catch (NoSecondaryStorageException e) {throw new RuntimeException("NoSecondaryException trotz Available"); }
 		else
-			return Environment.getExternalStoragePublicDirectory(dir);
+			return mPrimary.getPublicDirectory(dir);
 	}
 
 	public static String getCardState() {
@@ -312,7 +318,7 @@ public class Environment2  {
 			try {return getSecondaryExternalCacheDir(ctx);} 
 			catch (NoSecondaryStorageException e) {throw new RuntimeException("NoSecondaryException trotz Available"); }
 		else
-			return ctx.getExternalCacheDir();
+			return mPrimary.getCacheDir(ctx);
 	}
 
 	public static File getCardFilesDir(Context ctx, String dir) {
@@ -320,7 +326,7 @@ public class Environment2  {
 			try {return getSecondaryExternalFilesDir(ctx, dir);} 
 			catch (NoSecondaryStorageException e) {throw new RuntimeException("NoSecondaryException trotz Available"); }
 		else
-			return ctx.getExternalFilesDir(dir);
+			return mPrimary.getFilesDir(ctx, dir);
 	}
 
 
@@ -512,12 +518,20 @@ public class Environment2  {
 		// Methode 3: das erste verfügbare
 		if (mDeviceList.size()==0) {
 			mSecondary = null;
+			// TODO Geräte mit interner SD und Android 2 wie Nexus S
+			// if (nexus) mPrimary.setRemovable(false);
 		} else {
 			mSecondary = mDeviceList.get(0);
-			mSecondary.setName("SD-Card");
-			// Hack
-			if (mPrimary.isRemovable()) Log.w(TAG, "isExternStorageRemovable overwrite (secondary sd found) auf false");
-			mPrimary.setRemovable(false);
+			if (mSecondary.getName().contains("usb")) {
+				// z.B. HTC One X+
+				mSecondary = null;
+			} else {
+				// jau, SD gefunden
+				mSecondary.setName("SD-Card");
+				// Hack
+				if (mPrimary.isRemovable()) Log.w(TAG, "isExternStorageRemovable overwrite (secondary sd found) auf false");
+				mPrimary.setRemovable(false);
+			}
 		}
 	}
 	
@@ -595,6 +609,7 @@ public class Environment2  {
     			s = buf.readLine();
     		}
     		buf.close();
+    		Log.v(TAG, name+" gelesen; Geräte gefunden: "+mDeviceList.size());
     		return true;
     	} catch (Exception e) {
     		Log.e(TAG, "kann "+name+" nicht lesen: "+e.getMessage());

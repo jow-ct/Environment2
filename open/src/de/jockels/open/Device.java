@@ -86,5 +86,26 @@ public abstract class Device  {
 	 */
 	public abstract String getState(); 
 
+	
+	/**
+	 * Hilfsmethode zum Emulieren der getXXXDir-Methoden von {@link Context},
+	 * die einerseits nicht für API7 vorhanden sind, andererseits nicht für die 
+	 * gemounteten USB- und Secondary-Medien. Wird also von Methoden in
+	 * den Erben {@link DeviceDiv} und {@link DeviceIntern} genutzt.
+	 * 
+	 * @param ctx der Context (für {@link Context#getPackageName()})
+	 * @param s ein String, der den Pfadnamen innerhalb des App-Pfads beschreibt
+	 * @return ein File mit dem gewünschten Unterverzeichnis; falls nicht
+	 * 	vorhanden, wird das Verzeichnis angelegt
+	 */
+	protected File getFilesDirLow(Context ctx, String s) {
+		if (s!=null && !s.startsWith("/")) s = "/" + s;
+		File f = new File(getMountPoint() + Environment2.PATH_PREFIX + ctx.getPackageName() + s);
+		if (!f.isDirectory() && isWriteable()) 
+			f.mkdirs(); 
+		return f;
+	}
+
+
 }
 

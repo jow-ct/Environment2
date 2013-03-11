@@ -6,6 +6,15 @@ import android.content.Context;
 import android.os.Environment;
 import android.text.TextUtils.SimpleStringSplitter;
 
+/**
+ * Ein {@link Device}, das ein speziell gemountetes Gerät beschreibt, z.B.
+ * die Secondary-SDs vieler moderner Geräte und die USB-Geräte bzw.
+ * Kartenleser. Erkennt die Pfade aus vold.fstab (siehe {@link Environment2}
+ * und emuliert die getXXXDir-Methoden, die sonst {@link Context} hat.
+ * 
+ * @author Jockel
+ *
+ */
 class DeviceDiv extends Device {
 	private String mLabel, mName;
 	private boolean mAvailable, mWriteable;
@@ -60,14 +69,6 @@ class DeviceDiv extends Device {
 	
 	@Override
 	public File getFilesDir(Context ctx, String s) { return getFilesDirLow(ctx, s); }
-
-	private File getFilesDirLow(Context ctx, String s) {
-		if (s!=null && !s.startsWith("/")) s = "/" + s;
-		File f = new File(getMountPoint() + Environment2.PATH_PREFIX + ctx.getPackageName() + s);
-		if (!f.isDirectory() && isWriteable()) 
-			f.mkdirs(); 
-		return f;
-	}
 
 	@Override
 	public File getPublicDirectory(String s) { 

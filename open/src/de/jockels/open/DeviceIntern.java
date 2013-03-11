@@ -5,6 +5,26 @@ import java.io.File;
 import android.content.Context;
 import android.os.Environment;
 
+
+/**
+ * Hilfsklasse zum Beschreiben von /data, Erbe von {@link Device}. 
+ * 
+ * Nutzt für {@link #getFilesDir(Context)} und {@link #getCacheDir(Context)} 
+ * die Methoden von Context, hat aber für das dort nicht vorhandene 
+ * {@link #getFilesDir(Context, String)} (also mit dem String-Parameter) eine 
+ * Emulation. 
+ * 
+ * {@link #getPublicDirectory(String)} kann nicht emuliert werden, 
+ * weil man auf /data ja keinen Zugriff hat; liefert also null. 
+ * 
+ * {@link #getState()} liefert MEDIA_MOUNTED.
+ * 
+ * {@link #getName()} liefert "intern".
+ * 
+ * @author Jockel
+ * @version 1.1
+ *
+ */
 class DeviceIntern extends Device {
 	/**
 	 * liest Parameter aus {@link Environment#getDataDirectory() }, also
