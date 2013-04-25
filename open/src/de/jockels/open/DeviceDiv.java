@@ -42,6 +42,7 @@ class DeviceDiv extends Device {
 	@Override
 	protected void updateState() {
 		File f = new File(mMountPoint);
+		
 		//Workaround für speziellen vold.fstab Syntax von Motorola
 		//Format: dev_mount <label> <mount_point[:[asec_point]:[lun_point]]> <part> <sysfs_path1...> 
 		if(!(f.isDirectory() && f.canRead()) && mMountPoint.contains(":")) {
