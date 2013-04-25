@@ -5,6 +5,7 @@ import java.io.File;
 import android.content.Context;
 import android.os.Environment;
 import android.text.TextUtils.SimpleStringSplitter;
+import android.util.Log;
 
 /**
  * Ein {@link Device}, das ein speziell gemountetes Gerät beschreibt, z.B.
@@ -41,6 +42,17 @@ class DeviceDiv extends Device {
 	@Override
 	protected void updateState() {
 		File f = new File(mMountPoint);
+		//Workaround für speziellen vold.fstab Syntax von Motorola
+		//Format: dev_mount <label> <mount_point[:[asec_point]:[lun_point]]> <part> <sysfs_path1...> 
+		if(!(f.isDirectory() && f.canRead()) && mMountPoint.contains(":")) {
+			String possibleMountPoint = mMountPoint.substring(0, mMountPoint.indexOf(":"));
+			Log.v("DeviceDiv", "mp " + possibleMountPoint);
+			File pf = new File(possibleMountPoint);
+			if(pf.exists() && pf.isDirectory()) {
+				mMountPoint = possibleMountPoint;
+				f = pf;
+			}
+		}
 		setName(f.getName()); // letzter Teil des Pfads
 		if (mAvailable = f.isDirectory() && f.canRead()) { // ohne canRead() klappts z.B. beim Note2 nicht
 			mSize = Size.getSpace(f); 
